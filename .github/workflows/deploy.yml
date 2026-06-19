@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Deploy to GitHub Pages
 
 on:
   push:
@@ -7,16 +7,20 @@ on:
       - 'server/**'
       - '.env'
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+environment:
+  name: github-pages
+  url: https://developerhub23.github.io/THE-UNIVERSE/
+
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -27,14 +31,15 @@ jobs:
 
       - run: npm run build
 
-      - name: Deploy to main
-        run: |
-          cp -r dist/* ./
-          cp -r dist/.* . 2>/dev/null || true
-          rm -rf dist
-          
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add -A
-          git commit -m "Deploy: Update built files [skip ci]" --allow-empty
-          git push
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: https://developerhub23.github.io/THE-UNIVERSE/
+    steps:
+      - uses: actions/deploy-pages@v4
