@@ -1,24 +1,26 @@
-name: Build and Deploy to GitHub Pages
+name: Deploy to GitHub Pages
 
 on:
   push:
     branches: [main]
     paths-ignore:
       - 'server/**'
-      - '.env'
-      - '.gitignore'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+environment:
+  name: github-pages
+  url: https://developerhub23.github.io/THE-UNIVERSE/
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -29,23 +31,20 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build project
+      - name: Build
         run: npm run build
 
-      - name: Deploy to main branch
-        run: |
-          # Remove old built files
-          git rm -r --ignore-unmatch . 2>/dev/null || true
-          git rm -r --ignore-unmatch * 2>/dev/null || true
-          
-          # Copy built files to root
-          cp -r dist/* ./
-          cp -r dist/.* . 2>/dev/null || true
-          rm -rf dist
-          
-          # Commit and push
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add .
-          git commit -m "Auto-deploy: Build production files [skip ci]"
-          git push
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: https://developerhub23.github.io/THE-UNIVERSE/
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
