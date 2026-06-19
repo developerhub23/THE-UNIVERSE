@@ -36,8 +36,10 @@ app.post('/api/chat', async (req, res) => {
       response = await handleMistralRequest(message);
     } else if (model === 'openai') {
       response = await handleOpenAIRequest(message);
+    } else if (model === 'gemini') {
+      response = await handleGeminiRequest(message);
     } else {
-      return res.status(400).json({ error: 'Unsupported model' });
+      return res.status(400).json({ error: 'Unsupported model. Use: mistral, openai, or gemini' });
     }
     res.json({ response });
   } catch (error) {
@@ -57,8 +59,13 @@ app.post('/api/chat/stream', async (req, res) => {
       await streamMistralRequest(message, res);
     } else if (model === 'openai') {
       await streamOpenAIRequest(message, res);
+    } else if (model === 'gemini') {
+      await streamGeminiRequest(message, res);
     } else {
-      res.status(400).json({ error: 'Unsupported model' });
+      res.write('data: {"error": "Unsupported model. Use: mistral, openai, or gemini"}
+
+');
+      res.end();
     }
   } catch (error) {
     console.error('Stream error:', error);
@@ -120,10 +127,43 @@ async function handleOpenAIRequest(message) {
   return data.choices[0].message.content;
 }
 
+async function handleGeminiRequest(message) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('Gemini API key not configured');
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            { text: 'You are a helpful AI assistant specializing in space, astronomy, and space exploration. Provide accurate, detailed information.' },
+            { text: message }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2000
+      }
+    })
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Gemini API error');
+  }
+  const data = await response.json();
+  return data.candidates[0].content.parts[0].text;
+}
+
 async function streamMistralRequest(message, res) {
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) {
-    res.write('data: {"error": "Mistral API key not configured"}\n\n');
+    res.write('data: {"error": "Mistral API key not configured"}
+
+');
     res.end();
     return;
   }
@@ -146,7 +186,9 @@ async function streamMistralRequest(message, res) {
   });
   if (!response.ok) {
     const errorData = await response.json();
-    res.write(`data: {"error": "${errorData.message || 'Mistral API error'}"}\n\n`);
+    res.write(`data: {"error": "${errorData.message || 'Mistral API error'}"}
+
+`);
     res.end();
     return;
   }
@@ -156,14 +198,17 @@ async function streamMistralRequest(message, res) {
     const { done, value } = await reader.read();
     if (done) break;
     const chunk = decoder.decode(value, { stream: true });
-    const lines = chunk.split('\n').filter(line => line.trim() !== '');
+    const lines = chunk.split('
+').filter(line => line.trim() !== '');
     for (const line of lines) {
       if (line.startsWith('data:')) {
         const data = line.substring(5).trim();
         try {
           const parsed = JSON.parse(data);
           if (parsed.choices && parsed.choices[0]?.delta?.content) {
-            res.write(`data: ${JSON.stringify({ content: parsed.choices[0].delta.content })}\n\n`);
+            res.write(`data: ${JSON.stringify({ content: parsed.choices[0].delta.content })}
+
+`);
           }
         } catch (e) {
           console.error('Error parsing stream chunk:', e);
@@ -171,14 +216,18 @@ async function streamMistralRequest(message, res) {
       }
     }
   }
-  res.write('data: [DONE]\n\n');
+  res.write('data: [DONE]
+
+');
   res.end();
 }
 
 async function streamOpenAIRequest(message, res) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    res.write('data: {"error": "OpenAI API key not configured"}\n\n');
+    res.write('data: {"error": "OpenAI API key not configured"}
+
+');
     res.end();
     return;
   }
@@ -201,7 +250,9 @@ async function streamOpenAIRequest(message, res) {
   });
   if (!response.ok) {
     const errorData = await response.json();
-    res.write(`data: {"error": "${errorData.message || 'OpenAI API error'}"}\n\n`);
+    res.write(`data: {"error": "${errorData.message || 'OpenAI API error'}"}
+
+`);
     res.end();
     return;
   }
@@ -211,18 +262,23 @@ async function streamOpenAIRequest(message, res) {
     const { done, value } = await reader.read();
     if (done) break;
     const chunk = decoder.decode(value, { stream: true });
-    const lines = chunk.split('\n').filter(line => line.trim() !== '');
+    const lines = chunk.split('
+').filter(line => line.trim() !== '');
     for (const line of lines) {
       if (line.startsWith('data:')) {
         const data = line.substring(5).trim();
         if (data === '[DONE]') {
-          res.write('data: [DONE]\n\n');
+          res.write('data: [DONE]
+
+');
           continue;
         }
         try {
           const parsed = JSON.parse(data);
           if (parsed.choices && parsed.choices[0]?.delta?.content) {
-            res.write(`data: ${JSON.stringify({ content: parsed.choices[0].delta.content })}\n\n`);
+            res.write(`data: ${JSON.stringify({ content: parsed.choices[0].delta.content })}
+
+`);
           }
         } catch (e) {
           console.error('Error parsing stream chunk:', e);
@@ -230,8 +286,86 @@ async function streamOpenAIRequest(message, res) {
       }
     }
   }
-  res.write('data: [DONE]\n\n');
+  res.write('data: [DONE]
+
+');
   res.end();
+}
+
+async function streamGeminiRequest(message, res) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    res.write('data: {"error": "Gemini API key not configured"}
+
+');
+    res.end();
+    return;
+  }
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:streamGenerateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: 'You are a helpful AI assistant specializing in space, astronomy, and space exploration. Provide accurate, detailed information.' },
+              { text: message }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2000
+        }
+      })
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      res.write(`data: {"error": "${errorData.message || 'Gemini API error'}"}
+
+`);
+      res.end();
+      return;
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('
+
+').filter(line => line.trim() !== '');
+      for (const line of lines) {
+        if (line.startsWith('data:')) {
+          const data = line.substring(5).trim();
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.candidates && parsed.candidates[0]?.content?.parts?.[0]?.text) {
+              res.write(`data: ${JSON.stringify({ content: parsed.candidates[0].content.parts[0].text })}
+
+`);
+            }
+          } catch (e) {
+            console.error('Error parsing Gemini stream chunk:', e);
+          }
+        }
+      }
+    }
+    res.write('data: [DONE]
+
+');
+    res.end();
+  } catch (error) {
+    console.error('Gemini stream error:', error);
+    res.write(`data: {"error": "${error.message || 'Gemini stream error'}"}
+
+`);
+    res.end();
+  }
 }
 
 app.listen(PORT, () => {
