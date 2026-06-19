@@ -1,19 +1,22 @@
-name: Deploy to GitHub Pages
+name: Build and Deploy
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'server/**'
+      - '.env'
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pages: write
-      id-token: write
     
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -24,9 +27,14 @@ jobs:
 
       - run: npm run build
 
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          keep_files: false
+      - name: Deploy to main
+        run: |
+          cp -r dist/* ./
+          cp -r dist/.* . 2>/dev/null || true
+          rm -rf dist
+          
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -m "Deploy: Update built files [skip ci]" --allow-empty
+          git push
