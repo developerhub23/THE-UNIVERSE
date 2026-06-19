@@ -1,8 +1,11 @@
-name: Deploy to GitHub Pages
+name: Build and Deploy to GitHub Pages
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'server/**'
+      - '.github/**'
 
 jobs:
   build-and-deploy:
@@ -11,14 +14,18 @@ jobs:
       contents: write
       pages: write
       id-token: write
+    
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm install
@@ -26,16 +33,9 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Move built files to root
-        run: |
-          cp -r dist/* ./
-          cp -r dist/.* . 2>/dev/null || true
-          rm -rf dist
-
-      - name: Commit built files
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add .
-          git commit -m "Auto-deploy: Build and update production files"
-          git push
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          keep_files: false
