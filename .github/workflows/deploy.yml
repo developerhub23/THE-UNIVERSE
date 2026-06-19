@@ -1,65 +1,32 @@
-name: Build and Deploy to GitHub Pages
+name: Deploy to GitHub Pages
 
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - 'server/**'
-      - '.env'
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pages: write
+      id-token: write
     
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
-          fetch-depth: 0
+          node-version: 20
+          cache: npm
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - run: npm install
+
+      - run: npm run build
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build project
-        run: npm run build
-
-      - name: Prepare deployment
-        run: |
-          # Create a temporary directory
-          mkdir -p temp_deploy
-          
-          # Copy built files
-          cp -r dist/* temp_deploy/
-          cp -r dist/.* temp_deploy/ 2>/dev/null || true
-          
-          # Copy source files that should remain (except those that will be replaced)
-          cp -r server temp_deploy/
-          cp -r .github temp_deploy/
-          cp .env temp_deploy/ 2>/dev/null || true
-          cp package.json temp_deploy/
-          cp vite.config.js temp_deploy/
-          
-          # Remove old files from root
-          find . -maxdepth 1 ! -name '.git' ! -name '.github' -exec rm -rf {} + 2>/dev/null || true
-          
-          # Move new files to root
-          mv temp_deploy/* ./
-          mv temp_deploy/.* . 2>/dev/null || true
-          rm -rf temp_deploy
-          rm -rf dist
-
-      - name: Commit and push
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add -A
-          git commit -m "Auto-deploy: Update production build [skip ci]" --allow-empty
-          git push
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          keep_files: false
