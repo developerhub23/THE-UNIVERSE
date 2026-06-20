@@ -95,9 +95,9 @@ const AIChat = () => {
         <div className="space-y-4">
           <AnimatePresence mode="wait">
             {messages.map((msg, i) => (
-              <motion.div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: msg.role === 'user' ? 50 : -50 }} transition={{ delay: i * 0.1 }}>
-                <div className={`max-w-[80%] ${msg.role === 'user' ? 'order-2' : 'order-1'}`}>
-                  <motion.div className={`px-4 py-3 rounded-2xl ${msg.role === 'user' ? 'bg-blue-600/20 rounded-br-sm' : 'bg-white/10 rounded-bl-sm'}`} initial={{ scale: 0.9 }} animate={{ scale: 1 }} transition={{ delay: i * 0.1 + 0.1 }}>
+              <motion.div key={msg.id} className=`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}` initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: msg.role === 'user' ? 50 : -50 }} transition={{ delay: i * 0.1 }}>
+                <div className=`max-w-[80%] ${msg.role === 'user' ? 'order-2' : 'order-1'}`}>
+                  <motion.div className=`px-4 py-3 rounded-2xl ${msg.role === 'user' ? 'bg-blue-600/20 rounded-br-sm' : 'bg-white/10 rounded-bl-sm'}` initial={{ scale: 0.9 }} animate={{ scale: 1 }} transition={{ delay: i * 0.1 + 0.1 }}>
                     <div className="whitespace-pre-wrap break-words">
                       {msg.isStreaming ? (
                         <>
@@ -108,7 +108,7 @@ const AIChat = () => {
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
                       )}
                     </div>
-                    <motion.div className={`text-xs text-white/50 mt-2 ${msg.role === 'user' ? 'text-right' : 'text-left'}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.1 + 0.2 }}>
+                    <motion.div className=`text-xs text-white/50 mt-2 ${msg.role === 'user' ? 'text-right' : 'text-left'}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.1 + 0.2 }}>
                       {formatTime(msg.timestamp)}
                     </motion.div>
                   </motion.div>
