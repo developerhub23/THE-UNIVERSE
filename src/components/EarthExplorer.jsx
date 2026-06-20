@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import Globe from 'react-globe.gl';
 import CountryInfoCard from './CountryInfoCard';
 
