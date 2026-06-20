@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
+import Globe from 'globe.gl';
 import { motion } from 'framer-motion';
-import Globe from 'react-globe.gl';
 import CountryInfoCard from './CountryInfoCard';
 
 const COUNTRY_DATA = {
