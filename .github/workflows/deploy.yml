@@ -26,13 +26,14 @@ jobs:
         with:
           node-version: 20
 
-      - name: Clean install dependencies
+      - name: Install dependencies
         run: |
-          rm -rf node_modules package-lock.json dist
-          npm cache clean --force
-          npm install
+          npm ci || npm install
 
-      - run: npm run build
+      - name: Build project
+        run: |
+          npm run build
+          ls -la dist/ || echo "dist directory not found"
 
       - uses: actions/upload-pages-artifact@v3
         with:
