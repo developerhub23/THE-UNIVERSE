@@ -21,13 +21,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Remove duplicate client directory
+        run: rm -rf client/
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: rm -rf client/
+
       - run: npm ci
+
       - run: npm run build
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
