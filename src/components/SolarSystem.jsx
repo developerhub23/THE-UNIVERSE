@@ -176,7 +176,7 @@ const SolarSystem = () => {
       </Canvas>
       {selectedPlanet && (
         <motion.button className="fixed top-6 right-6 z-50 w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white hover:bg-white/10" onClick={() => setSelectedPlanet(null)} whileHover={{ scale: 1.1, rotate: 90 }} whileTap={{ scale: 0.9 }}>
-          <span className="text-xl">×</span>
+          <span className="text-xl">Ã</span>
         </motion.button>
       )}
     </div>
