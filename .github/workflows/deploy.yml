@@ -25,40 +25,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug - List files
-        run: ls -la
+      - name: Debug - List repository files
+        run: find . -maxdepth 2 -type f -name "*.js" -o -name "*.jsx" -o -name "*.json" -o -name "*.html" -o -name "*.css" | grep -v node_modules | grep -v server | head -30
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Debug - Node version
-        run: node --version && npm --version
-
-      - name: Fresh install
+      - name: Debug - Node and npm versions
         run: |
-          rm -f package-lock.json
-          npm install --no-package-lock
+          echo "Node version:" $(node --version)
+          echo "npm version:" $(npm --version)
 
-      - name: Debug - List node_modules
-        run: ls -la node_modules/ | head -20
-
-      - name: Build project
+      - name: Clean install
         run: |
-          npm run build || echo "Build failed!"
-          ls -la dist/ || echo "dist directory not found"
-        continue-on-error: true
+          rm -rf node_modules package-lock.json dist
+          npm cache clean --force
+          npm install
 
-      - name: Debug - Show build logs
-        if: failure()
+      - name: Build with Vite
         run: |
-          echo "=== package.json ==="
-          cat package.json
-          echo "=== vite.config.js ==="
-          cat vite.config.js
+          echo "Running vite build..."
+          npx vite build --mode production
+          echo "Build exit code: $?"
+          ls -la dist/ 2>/dev/null || echo "ERROR: dist directory not created"
 
       - uses: actions/upload-pages-artifact@v3
-        if: success()
         with:
           path: dist
 
