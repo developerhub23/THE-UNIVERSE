@@ -29,9 +29,10 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install dependencies
+      - name: Fresh install (ignore lock file)
         run: |
-          npm ci || npm install
+          rm -f package-lock.json
+          npm install --no-package-lock
 
       - name: Build project
         run: |
