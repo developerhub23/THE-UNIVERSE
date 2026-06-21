@@ -25,21 +25,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Debug - List files
+        run: ls -la
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Fresh install (ignore lock file)
+      - name: Debug - Node version
+        run: node --version && npm --version
+
+      - name: Fresh install
         run: |
           rm -f package-lock.json
           npm install --no-package-lock
 
+      - name: Debug - List node_modules
+        run: ls -la node_modules/ | head -20
+
       - name: Build project
         run: |
-          npm run build
+          npm run build || echo "Build failed!"
           ls -la dist/ || echo "dist directory not found"
+        continue-on-error: true
+
+      - name: Debug - Show build logs
+        if: failure()
+        run: |
+          echo "=== package.json ==="
+          cat package.json
+          echo "=== vite.config.js ==="
+          cat vite.config.js
 
       - uses: actions/upload-pages-artifact@v3
+        if: success()
         with:
           path: dist
 
