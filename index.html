@@ -1073,6 +1073,47 @@
             color: var(--text-primary);
         }
 
+        /* ==================== LOADING STATES ==================== */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--glass-border);
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            font-family: var(--font-display);
+            font-size: 1.2rem;
+            color: var(--text-primary);
+        }
 
         /* ==================== TOAST NOTIFICATIONS ==================== */
         .toast-container {
@@ -1271,6 +1312,7 @@
             .navbar,
             .sidebar,
             .back-btn,
+            .loading-overlay,
             .toast-container {
                 display: none !important;
             }
@@ -1288,6 +1330,12 @@
     </style>
 </head>
 <body class="bg-[#050508] text-white">
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading THE UNIVERSE...</div>
+    </div>
+
     <!-- Toast Container -->
     <div id="toast-container" class="toast-container"></div>
 
@@ -1500,6 +1548,16 @@
 
     <script>
         // ============================================
+        // CONFIGURATION
+        // ============================================
+        
+        const CONFIG = {
+            geminiApiKey: 'YOUR_GEMINI_API_KEY_HERE', // Replace with your actual API key
+            geminiApiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent',
+            aiModel: 'gemini-1.5-flash-latest'
+        };
+        
+        // ============================================
         // STATE MANAGEMENT
         // ============================================
         
@@ -1552,7 +1610,7 @@
             // UI state
             ui: {
                 isMobileNavOpen: false,
-                isLoading: false,
+                isLoading: true,
                 theme: 'dark',
                 toastQueue: []
             },
@@ -2205,6 +2263,11 @@
             // Load initial data
             loadInitialData();
             
+            // Hide loading overlay after 5 seconds
+            setTimeout(() => {
+                hideLoadingOverlay();
+            }, 5000);
+            
             // Add system message to chat
             addSystemMessage('Welcome to THE UNIVERSE AI Guide! Ask me anything about space, planets, astronomy, or space exploration.');
         }
@@ -2257,6 +2320,28 @@
                     timestamp: new Date()
                 }
             ];
+        }
+
+        // ============================================
+        // LOADING OVERLAY
+        // ============================================
+        
+        // Hide loading overlay
+        function hideLoadingOverlay() {
+            AppState.ui.isLoading = false;
+            const loadingOverlay = document.getElementById('loading-overlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+
+        // Show loading overlay
+        function showLoadingOverlay() {
+            AppState.ui.isLoading = true;
+            const loadingOverlay = document.getElementById('loading-overlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.remove('hidden');
+            }
         }
 
         // ============================================
@@ -3264,7 +3349,7 @@
         }
 
         // Send message
-        function sendMessage() {
+        async function sendMessage() {
             const chatInput = document.getElementById('chat-input');
             if (!chatInput) return;
             
@@ -3296,23 +3381,76 @@
             AppState.chat.isLoading = true;
             updateChatStatus();
             
-            // Simulate AI response after a delay
-            setTimeout(() => {
-                generateAIResponse(message);
-                
+            // Call AI response (async)
+            generateAIResponse(message).finally(() => {
                 // Re-enable send button
                 if (sendBtn) {
                     sendBtn.disabled = false;
                 }
+            });
+        }
+
+        // Call Gemini API
+        async function callGeminiAPI(prompt) {
+            try {
+                const response = await fetch(CONFIG.geminiApiUrl + '?key=' + CONFIG.geminiApiKey, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: prompt
+                            }]
+                        }],
+                        generationConfig: {
+                            temperature: 0.9,
+                            topK: 1,
+                            topP: 1,
+                            maxOutputTokens: 2000,
+                        }
+                    })
+                });
                 
-                AppState.chat.isLoading = false;
-                updateChatStatus();
-            }, 1000);
+                if (!response.ok) {
+                    throw new Error(`API request failed: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 
+                                   'Sorry, I couldn\'t generate a response.';
+                return aiResponse;
+            } catch (error) {
+                console.error('Gemini API error:', error);
+                return `Sorry, there was an error connecting to the AI: ${error.message}`;
+            }
         }
 
         // Generate AI response
-        function generateAIResponse(userMessage) {
-            // Convert to lowercase for matching
+        async function generateAIResponse(userMessage) {
+            // Set loading state
+            AppState.chat.isLoading = true;
+            updateChatStatus();
+            
+            try {
+                // Call actual Gemini API
+                const aiResponse = await callGeminiAPI(userMessage);
+                
+                // Add AI response
+                sendAIResponse(aiResponse);
+            } catch (error) {
+                // Fallback to simulated response if API fails
+                console.error('Using fallback response:', error);
+                generateFallbackResponse(userMessage);
+            } finally {
+                AppState.chat.isLoading = false;
+                updateChatStatus();
+            }
+        }
+
+        // Fallback to simulated responses if API fails
+        function generateFallbackResponse(userMessage) {
             const lowerMessage = userMessage.toLowerCase();
             
             // Check for greetings
