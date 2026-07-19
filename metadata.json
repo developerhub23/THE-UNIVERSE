@@ -1,8 +1,0 @@
-{
-  "name": "THE UNIVERSE",
-  "description": "A NASA-level 3D space exploration application with Solar System, Earth Explorer, Space News, and AI Chat",
-  "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
-}
