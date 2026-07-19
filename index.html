@@ -1792,7 +1792,7 @@ body.light-theme {
         // ============================================
         
 const CONFIG = {
-    geminiApiKey: 'AIzaSyC8A105BEv4gSlLJuLWtoRVP4y7HSsjeWk',
+    geminiApiKey: '',  // SECURITY: API key removed - use server-side proxy or environment variables
     geminiApiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
     aiModel: 'gemini-1.5-flash'
 };
@@ -2507,11 +2507,28 @@ const CONFIG = {
             // Load initial data
             loadInitialData();
             
-            // Hide loading overlay after 5 seconds
-            setTimeout(() => {
-                console.log('Hiding loading overlay...');
-                hideLoadingOverlay();
-            }, 5000);
+            // Hide loading overlay after resources are loaded
+            // Check if server is responsive
+            fetch('/api/health')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'ok') {
+                        console.log('Server is healthy, hiding loading overlay');
+                        hideLoadingOverlay();
+                    } else {
+                        // Server not ready, hide after timeout anyway
+                        console.log('Server not ready, will hide overlay after timeout');
+                        setTimeout(hideLoadingOverlay, 3000);
+                    }
+                })
+                .catch(() => {
+                    // If server is not running (dev mode without server), hide after shorter timeout
+                    console.log('Server not available, hiding overlay after timeout');
+                    setTimeout(hideLoadingOverlay, 2000);
+                });
+            
+            // Fallback: hide after max 10 seconds regardless
+            setTimeout(hideLoadingOverlay, 10000);
             
             // Add system message to chat
             addSystemMessage('Welcome to THE UNIVERSE AI Guide! Ask me anything about space, planets, astronomy, or space exploration.');
@@ -4615,11 +4632,24 @@ const CONFIG = {
         }
 
         // Send message
+        // Input sanitization helper
+        function sanitizeInput(text) {
+            if (typeof text !== 'string') return '';
+            // Trim and limit length
+            let sanitized = text.trim().substring(0, 5000);
+            // Remove excessive newlines
+            sanitized = sanitized.replace(/\n{3,}/g, '\n\n');
+            // Escape HTML to prevent XSS
+            const div = document.createElement('div');
+            div.textContent = sanitized;
+            return div.innerHTML;
+        }
+
         async function sendMessage() {
             const chatInput = document.getElementById('chat-input');
             if (!chatInput) return;
             
-            const message = chatInput.value.trim();
+            const message = sanitizeInput(chatInput.value);
             if (!message) return;
             
             // Disable send button
@@ -4657,7 +4687,7 @@ const CONFIG = {
         }
 
 async function callGeminiAPI(prompt) {
-    // Try server-side proxy route first (safer and recommended to hide API key)
+    // SECURITY: Only use server-side proxy to avoid exposing API keys
     try {
         const response = await fetch('/api/chat', {
             method: 'POST',
@@ -4666,40 +4696,20 @@ async function callGeminiAPI(prompt) {
             },
             body: JSON.stringify({ prompt })
         });
-        if (response.ok) {
-            const data = await response.json();
-            return data.text || "I couldn't generate a response.";
-        }
-        console.warn(`Server API responded with status ${response.status}, trying direct client fallback.`);
-    } catch (serverError) {
-        console.warn('Server API call failed, trying direct client fallback:', serverError);
-    }
-
-    // Direct Client fallback (if server is not running or fails)
-    try {
-        const url = `${CONFIG.geminiApiUrl}?key=${CONFIG.geminiApiKey}`;
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: prompt }]
-                }]
-            })
-        });
-
+        
         if (!response.ok) {
-            throw new Error(`API request failed with status: ${response.status}`);
+            const errorData = await response.json().catch(() => ({}));
+            const errorMsg = errorData.error || errorData.text || `Server returned status ${response.status}`;
+            console.warn('Server API error:', errorMsg);
+            return errorMsg || "I couldn't generate a response.";
         }
-
+        
         const data = await response.json();
-        const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response.";
-        return aiResponse;
-    } catch (error) {
-        console.error('Gemini Client API error:', error);
-        return `Sorry, there was an error connecting to the space intelligence systems: ${error.message}`;
+        return data.text || "I couldn't generate a response.";
+    } catch (serverError) {
+        console.error('Server API call failed:', serverError);
+        // Return a user-friendly message without exposing internal errors
+        return "Sorry, I'm having trouble connecting to the AI service. Please ensure the server is running and try again.";
     }
 }
 
@@ -6727,11 +6737,44 @@ function toggleTheme() {
             init();
         }
 
+        // Clean up global background
+        function cleanupGlobalBackground() {
+            if (globalBackground.animationId) {
+                cancelAnimationFrame(globalBackground.animationId);
+                globalBackground.animationId = null;
+            }
+            
+            if (globalBackground.renderer) {
+                globalBackground.renderer.dispose();
+                globalBackground.renderer = null;
+            }
+            
+            if (globalBackground.scene) {
+                globalBackground.scene.traverse(object => {
+                    if (object.isMesh) {
+                        if (object.geometry) object.geometry.dispose();
+                        if (object.material) {
+                            if (object.material instanceof Array) {
+                                object.material.forEach(material => material.dispose());
+                            } else {
+                                object.material.dispose();
+                            }
+                        }
+                    }
+                });
+                globalBackground.scene = null;
+            }
+            
+            globalBackground.camera = null;
+            globalBackground.stars = null;
+        }
+
         // Handle window beforeunload
         window.addEventListener('beforeunload', () => {
             // Clean up resources
             cleanupSolarSystem();
             cleanupEarthExplorer();
+            cleanupGlobalBackground();
         });
     </script>
 </body>
